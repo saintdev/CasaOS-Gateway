@@ -71,7 +71,6 @@ __get_download_domain(){
 }
 
 DOWNLOAD_DOMAIN=$(__get_download_domain)
-
 BUILD_PATH=$(dirname "${BASH_SOURCE[0]}")/../../..
 
 readonly BUILD_PATH
@@ -110,7 +109,27 @@ if [ "${NEED_MIGRATION}" = "false" ]; then
     exit 0
 fi
 
+ARCH="unknown"
+
+case $(uname -m) in
+    x86_64)
+        ARCH="amd64"
+        ;;
+    aarch64)
+        ARCH="arm64"
+        ;;
+    armv7l)
+        ARCH="arm-7"
+        ;;
+    *)
+        __error "Unsupported architecture"
+        ;;
+esac
+
+__info "ARCH: ${ARCH}"
+
 MIGRATION_SERVICE_DIR=${1}
+
 if [ -z "${MIGRATION_SERVICE_DIR}" ]; then
     MIGRATION_SERVICE_DIR=${BUILD_PATH}/scripts/migration/service.d/${APP_NAME_SHORT}
 fi
@@ -149,23 +168,6 @@ if [ ${#MIGRATION_PATH[@]} -eq 0 ]; then
     exit 0
 fi
 
-ARCH="unknown"
-
-case $(uname -m) in
-    x86_64)
-        ARCH="amd64"
-        ;;
-    aarch64)
-        ARCH="arm64"
-        ;;
-    armv7l)
-        ARCH="arm-7"
-        ;;
-    *)
-        __error "Unsupported architecture"
-        ;;
-esac
-
 pushd "${MIGRATION_SERVICE_DIR}"
 
 {
@@ -179,7 +181,7 @@ pushd "${MIGRATION_SERVICE_DIR}"
 
         MIGRATION_TOOL_URL=${DOWNLOAD_DOMAIN}IceWhaleTech/"${APP_NAME_FORMAL}"/releases/download/"${VER2}"/linux-"${ARCH}"-"${APP_NAME}"-migration-tool-"${VER2}".tar.gz
         __info "Dowloading ${MIGRATION_TOOL_URL}..."
-        curl -sL -O "${MIGRATION_TOOL_URL}"
+        curl -fsSL -O "${MIGRATION_TOOL_URL}"
     done
 } || {
     popd

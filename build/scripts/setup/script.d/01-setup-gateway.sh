@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e 
+set -e
 
 BUILD_PATH=$(dirname "${BASH_SOURCE[0]}")/../../..
 
