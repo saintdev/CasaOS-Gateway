@@ -1,0 +1,11 @@
+#!/sbin/openrc-run
+
+description="CasaOS Gateway"
+command="/usr/bin/casaos-gateway"
+command_args="${CASAOS_GATEWAY_ARGS}"
+pidfile="/var/run/casaos/gateway.pid"
+start_stop_daemon_args="--background"
+
+depend() {
+	use net
+}

@@ -2,25 +2,26 @@
 
 set -e
 
-BUILD_PATH=$(dirname "${BASH_SOURCE[0]}")/../../..
+BUILD_PATH=$(dirname "${0}")/../../..
 
 readonly BUILD_PATH
 readonly APP_NAME_SHORT=gateway
 
 __get_setup_script_directory_by_os_release() {
-	pushd "$(dirname "${BASH_SOURCE[0]}")/../service.d/${APP_NAME_SHORT}" >/dev/null
 
-	{
+	(
+		cd "$(dirname "${0}")/../service.d/${APP_NAME_SHORT}" >/dev/null
+
 		# shellcheck source=/dev/null
-		{
-			source /etc/os-release
+		(
+			. /etc/os-release
 			{
-				pushd "${ID}"/"${VERSION_CODENAME}" >/dev/null
+				cd "${ID}"/"${VERSION_CODENAME}" >/dev/null
 			} || {
-				pushd "${ID}" >/dev/null
+				cd "${ID}" >/dev/null
 			} || {
-                [[ -n ${ID_LIKE} ]] && for ID in ${ID_LIKE}; do
-				    pushd "${ID}" >/dev/null && break
+                [ -n "${ID_LIKE}" ] && for ID in ${ID_LIKE}; do
+				    cd "${ID}" >/dev/null && break
                 done
 			} || {
 				echo "Unsupported OS: ${ID} ${VERSION_CODENAME} (${ID_LIKE})"
@@ -28,17 +29,12 @@ __get_setup_script_directory_by_os_release() {
 			}
 
 			pwd
-
-			popd >/dev/null
-
-		} || {
+		) || {
 			echo "Unsupported OS: unknown"
 			exit 1
 		}
 
-	}
-
-	popd >/dev/null
+	) || exit 1
 }
 
 SETUP_SCRIPT_DIRECTORY=$(__get_setup_script_directory_by_os_release)
@@ -49,7 +45,7 @@ readonly SETUP_SCRIPT_FILEPATH="${SETUP_SCRIPT_DIRECTORY}/${SETUP_SCRIPT_FILENAM
 
 {
     echo "🟩 Running ${SETUP_SCRIPT_FILENAME}..."
-    $BASH "${SETUP_SCRIPT_FILEPATH}" "${BUILD_PATH}"
+    $SHELL "${SETUP_SCRIPT_FILEPATH}" "${BUILD_PATH}"
 } || {
     echo "🟥 ${SETUP_SCRIPT_FILENAME} failed."
     exit 1

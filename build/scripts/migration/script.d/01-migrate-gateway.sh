@@ -59,11 +59,11 @@ __is_migration_needed() {
 __get_download_domain(){
     local region
     # Use ipconfig.io/country and https://ifconfig.io/country_code to get the country code
-    region=$(curl --connect-timeout 2 -s ipconfig.io/country || echo "")
+    region=$(wget -T 2 -qO - ipconfig.io/country || echo "")
     if [ "${region}" = "" ]; then
-       region=$(curl --connect-timeout 2 -s https://ifconfig.io/country_code || echo "")
+       region=$(wget -T 2 -qO - https://ifconfig.io/country_code || echo "")
     fi
-    if [[ "${region}" = "China" ]] || [[ "${region}" = "CN" ]]; then
+    if [ "${region}" = "China" ] || [ "${region}" = "CN" ]; then
         echo "https://casaos.oss-cn-shanghai.aliyuncs.com/"
     else
         echo "https://github.com/"
@@ -71,7 +71,7 @@ __get_download_domain(){
 }
 
 DOWNLOAD_DOMAIN=$(__get_download_domain)
-BUILD_PATH=$(dirname "${BASH_SOURCE[0]}")/../../..
+BUILD_PATH=$(dirname "${0}")/../../..
 
 readonly BUILD_PATH
 readonly SOURCE_ROOT=${BUILD_PATH}/sysroot
@@ -136,7 +136,6 @@ fi
 
 readonly MIGRATION_LIST_FILE=${MIGRATION_SERVICE_DIR}/migration.list
 
-MIGRATION_PATH=()
 CURRENT_VERSION_FOUND="false"
 
 # a VERSION_PAIR looks like "v0.3.5 v0.3.6-alpha2"
@@ -156,41 +155,33 @@ while read -r VERSION_PAIR; do
 
     if [ "${CURRENT_VERSION}" = "${VER1// /}" ] || [ "${CURRENT_VERSION}" = "LEGACY_WITHOUT_VERSION" ]; then
         CURRENT_VERSION_FOUND="true"
-    fi
 
-    if [ "${CURRENT_VERSION_FOUND}" = "true" ]; then
-        MIGRATION_PATH+=("${VER2// /}")
+        (
+            cd "${MIGRATION_SERVICE_DIR}"
+
+            MIGRATION_TOOL_FILE=linux-"${ARCH}"-"${APP_NAME}"-migration-tool-"${VER2}".tar.gz
+            MIGRATION_TOOL_URL=${DOWNLOAD_DOMAIN}IceWhaleTech/"${APP_NAME_FORMAL}"/releases/download/"${VER2}"/linux-"${MIGRATION_TOOL_FILE}"
+
+            if [ -f "${MIGRATION_TOOL_FILE}" ]; then
+                __info "Migration tool ${MIGRATION_TOOL_FILE} exists. Skip downloading."
+            else
+                __info "Dowloading ${MIGRATION_TOOL_URL}..."
+                wget -qO "${MIGRATION_TOOL_FILE}" "${MIGRATION_TOOL_URL}"
+            fi
+        ) || __error "Failed to download migration tools"
+
     fi
 done < "${MIGRATION_LIST_FILE}"
 
-if [ ${#MIGRATION_PATH[@]} -eq 0 ]; then
+if [ "${CURRENT_VERSION_FOUND}" != "true" ]; then
     __warning "No migration path found from ${CURRENT_VERSION} to ${SOURCE_VERSION}"
     exit 0
 fi
 
-pushd "${MIGRATION_SERVICE_DIR}"
+(
+    cd "${MIGRATION_SERVICE_DIR}"
 
-{
-    for VER2 in "${MIGRATION_PATH[@]}"; do
-        MIGRATION_TOOL_FILE=linux-"${ARCH}"-"${APP_NAME}"-migration-tool-"${VER2}".tar.gz
-
-        if [ -f "${MIGRATION_TOOL_FILE}" ]; then
-            __info "Migration tool ${MIGRATION_TOOL_FILE} exists. Skip downloading."
-            continue
-        fi
-
-        MIGRATION_TOOL_URL=${DOWNLOAD_DOMAIN}IceWhaleTech/"${APP_NAME_FORMAL}"/releases/download/"${VER2}"/linux-"${ARCH}"-"${APP_NAME}"-migration-tool-"${VER2}".tar.gz
-        __info "Dowloading ${MIGRATION_TOOL_URL}..."
-        curl -fsSL -O "${MIGRATION_TOOL_URL}"
-    done
-} || {
-    popd
-    __error "Failed to download migration tools"
-}
-
-{
-    for VER2 in "${MIGRATION_PATH[@]}"; do
-        MIGRATION_TOOL_FILE=linux-"${ARCH}"-"${APP_NAME}"-migration-tool-"${VER2}".tar.gz
+    for MIGRATION_TOOL_FILE in "linux-${ARCH}-${APP_NAME}-migration-tool-"*.tar.gz; do
         __info "Extracting ${MIGRATION_TOOL_FILE}..."
         tar zxvf "${MIGRATION_TOOL_FILE}" || __error "Failed to extract ${MIGRATION_TOOL_FILE}"
 
@@ -198,9 +189,4 @@ pushd "${MIGRATION_SERVICE_DIR}"
         __info "Running ${MIGRATION_TOOL_PATH}..."
         ${MIGRATION_TOOL_PATH}
     done
-} || {
-    popd
-    __error "Failed to extract and run migration tools"
-}
-
-popd
+) || __error "Failed to extract and run migration tools"
