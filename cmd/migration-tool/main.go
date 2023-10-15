@@ -7,7 +7,7 @@ import (
 	"os"
 
 	interfaces "github.com/IceWhaleTech/CasaOS-Common"
-	"github.com/IceWhaleTech/CasaOS-Common/utils/systemctl"
+	"github.com/IceWhaleTech/CasaOS-Common/utils/init_system"
 	"github.com/IceWhaleTech/CasaOS-Gateway/common"
 )
 
@@ -53,8 +53,10 @@ func main() {
 		_logger.DebugMode = true
 	}
 
+	initMgr := init_system.NewInitManager()
+
 	if !*forceFlag {
-		isRunning, err := systemctl.IsServiceRunning(gatewayServiceName)
+		isRunning, err := initMgr.IsServiceRunning(gatewayServiceName)
 		if err != nil {
 			_logger.Error("Failed to check if %s is running", gatewayServiceName)
 			panic(err)
